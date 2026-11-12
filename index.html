@@ -172,7 +172,7 @@
     <div class="sec">
       <label class="t">Vue</label>
       <div class="row">
-        <button class="btn" id="b3d">Passer en 2D</button>
+        <button class="btn" id="b3d">Passer en 3D</button>
         <button class="btn ghost" id="north" title="Remettre le nord en haut">Nord ↑</button>
       </div>
       <div class="row"><span class="muted">Relief ×</span><input type="range" id="exa" min="1" max="2.5" step="0.1" value="1.3"><span id="exav" class="muted">1.3</span></div>
@@ -593,8 +593,7 @@ const map = new maplibregl.Map({
       { id: 'slope', type: 'raster', source: 'slope', layout: { visibility: 'none' },
         paint: { 'raster-opacity': 0.6, 'raster-opacity-transition': { duration: 0 }, 'raster-fade-duration': 150 } },
       { id: 'trails', type: 'raster', source: 'trails', layout: { visibility: 'none' } }
-    ],
-    terrain: { source: 'demT', exaggeration: 1.3 }
+    ]
   },
   attributionControl: { compact: true }
 });
@@ -721,7 +720,9 @@ function setOpacity() {
 $('op').addEventListener('input', setOpacity);
 $('op').addEventListener('change', setOpacity);
 
-let is3D = true;
+let is3D = false;      // 2D par défaut ; le bouton active le relief 3D
+// Déplacements « aller à » : on garde l'orientation et l'inclinaison choisies par l'utilisateur
+const keepView = () => ({ bearing: map.getBearing(), pitch: map.getPitch() });
 $('b3d').onclick = () => {
   is3D = !is3D;
   if (is3D) { map.setTerrain({ source: 'demT', exaggeration: +$('exa').value }); map.easeTo({ pitch: 60, duration: 800 }); }
@@ -748,12 +749,12 @@ function localResults(q) {
     tk.forEach(t => out.appendChild(resultRow(
       `<span class="dot" style="background:${t.color}"></span><span>${esc(t.name)}<small>${(t.dist / 1000).toFixed(1)} km · +${Math.round(t.up)} m</small></span>`,
       () => { if (!t.visible) { setTrackVisible(t, true); renderTracks(); saveTracks(); }
-              const [w, s, e, nn] = t.bbox; map.fitBounds([[w, s], [e, nn]], { padding: 60, pitch: is3D ? 55 : 0, duration: 1200 }); })));
+              const [w, s, e, nn] = t.bbox; map.fitBounds([[w, s], [e, nn]], { padding: 60, ...keepView(), duration: 1200 }); })));
   }
   if (zn.length) {
     out.appendChild(Object.assign(document.createElement('div'), { className: 'grp', textContent: 'Mes zones hors ligne' }));
     zn.forEach(z => out.appendChild(resultRow(`<span>⬇</span><span>${esc(z.name)}<small>${fmtMB(z.bytes)}</small></span>`,
-      () => { const [w, s, e, nn] = z.bbox; map.fitBounds([[w, s], [e, nn]], { padding: 20, pitch: is3D ? 50 : 0, duration: 1500 }); })));
+      () => { const [w, s, e, nn] = z.bbox; map.fitBounds([[w, s], [e, nn]], { padding: 20, ...keepView(), duration: 1500 }); })));
   }
   return out;
 }
@@ -789,7 +790,7 @@ $('qForm').addEventListener('submit', async e => {
       const [title, ...rest] = p.display_name.split(', ');
       $('results').appendChild(resultRow(`<span>📍</span><span>${esc(title)}<small>${esc(rest.slice(0, 3).join(', '))}</small></span>`, () => {
         const [s, n, w, ea] = p.boundingbox.map(Number);
-        map.fitBounds([[w, s], [ea, n]], { maxZoom: 14, pitch: is3D ? 60 : 0, duration: 1500 });
+        map.fitBounds([[w, s], [ea, n]], { maxZoom: 14, ...keepView(), duration: 1500 });
       }));
     });
   } catch (err) { if (job === searchJob) msg.textContent = 'Recherche de lieux indisponible pour le moment.'; }
@@ -836,7 +837,7 @@ async function loadGpx(file) {
   applyTrackOrder(); renderTracks(); saveTracks();
   showTab('tracks');
   const [w, s, e, nn] = t.bbox;
-  map.fitBounds([[w, s], [e, nn]], { padding: 60, pitch: is3D ? 55 : 0, duration: 1500 });
+  map.fitBounds([[w, s], [e, nn]], { padding: 60, ...keepView(), duration: 1500 });
 }
 function addTrackLayers(t) {
   map.addSource(t.id, { type: 'geojson', data: { type: 'Feature', geometry: { type: 'LineString', coordinates: t.coords } } });
@@ -944,7 +945,7 @@ function renderTracks() {
     const [bUp, bDown, bVis, bZoom, bDl, bDel] = li.querySelectorAll('.ta button');
     const focus = () => {
       if (!t.visible) { setTrackVisible(t, true); renderTracks(); saveTracks(); }
-      const [w, s, e, n] = t.bbox; map.fitBounds([[w, s], [e, n]], { padding: 60, pitch: is3D ? 55 : 0, duration: 1200 });
+      const [w, s, e, n] = t.bbox; map.fitBounds([[w, s], [e, n]], { padding: 60, ...keepView(), duration: 1200 });
       if (window.matchMedia('(max-width: 600px)').matches) collapsePanel(true);
     };
     bUp.onclick = () => moveTrack(i, i - 1);
@@ -1045,7 +1046,7 @@ async function renderZones() {
       <div class="za"><button class="btn ghost">Y aller</button><button class="btn ghost">Supprimer</button></div>`;
     el.querySelector('.nm').textContent = zone.name;
     const [go, del] = el.querySelectorAll('button');
-    go.onclick = () => { const [w, s, e, n] = zone.bbox; map.fitBounds([[w, s], [e, n]], { padding: 20, pitch: is3D ? 50 : 0, duration: 1500 });
+    go.onclick = () => { const [w, s, e, n] = zone.bbox; map.fitBounds([[w, s], [e, n]], { padding: 20, ...keepView(), duration: 1500 });
                          if (window.matchMedia('(max-width: 600px)').matches) collapsePanel(true); };
     del.onclick = async () => {
       if (!del.dataset.sure) { del.dataset.sure = 1; del.textContent = 'Confirmer ?'; del.style.borderColor = del.style.color = '#c40000';
@@ -1102,7 +1103,7 @@ function prepareZone(box, name) {
   previewBox = box || viewBBox();
   $('offName').value = name || 'Zone du ' + new Date().toLocaleDateString('fr-FR');
   $('offForm').style.display = 'block'; $('offPrep').style.display = 'none';
-  if (box) { const [w, s, e, n] = box; map.fitBounds([[w, s], [e, n]], { padding: 30, pitch: is3D ? 50 : 0, duration: 1200 }); }
+  if (box) { const [w, s, e, n] = box; map.fitBounds([[w, s], [e, n]], { padding: 30, ...keepView(), duration: 1200 }); }
   $('offForm').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   updateEstimate(); renderZones();
 }
