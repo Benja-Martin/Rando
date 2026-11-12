@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Carte relief & pentes 3D</title>
 <meta name="theme-color" content="#2f6b4f">
 <meta name="description" content="Carte de randonnée : relief 3D, pentes, tracés GPX, hors ligne.">
@@ -21,12 +21,39 @@
   * { box-sizing: border-box; }
   html, body { margin:0; height:100%; font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color:var(--fg); }
   #map { position:absolute; inset:0; }
-  #panel { position:absolute; top:10px; left:10px; width:300px; max-height:calc(100% - 20px); overflow:auto;
-           background:var(--bg); border-radius:12px; box-shadow:0 4px 18px rgba(0,0,0,.18); padding:14px; z-index:2; }
-  #panel.collapsed .body { display:none; }
-  h1 { font-size:16px; margin:0; flex:1; cursor:pointer; }
-  .head { display:flex; align-items:center; gap:8px; }
-  .toggle { border:0; background:none; font-size:18px; cursor:pointer; color:var(--muted); }
+  :root { --top: env(safe-area-inset-top, 0px); --bot: env(safe-area-inset-bottom, 0px); --tabbar: 60px; }
+  /* Barre de recherche en haut */
+  #search { position:absolute; top:calc(10px + var(--top)); left:10px; right:10px; max-width:460px; z-index:4; }
+  #search .box { display:flex; align-items:center; gap:4px; background:#fff; border-radius:24px; box-shadow:0 2px 12px rgba(0,0,0,.2); padding:4px 6px 4px 14px; }
+  #search .box svg { flex:none; color:var(--muted); }
+  #search input { border:0; outline:0; padding:9px 4px; font-size:15px; background:transparent; flex:1; min-width:0; width:auto; }
+  #search .ib { border:0; background:none; cursor:pointer; color:var(--muted); font-size:18px; padding:4px 8px; border-radius:16px; }
+  #search .go { background:var(--accent); color:#fff; font-size:14px; padding:7px 12px; }
+  #results { margin-top:6px; background:#fff; border-radius:12px; box-shadow:0 4px 16px rgba(0,0,0,.18); max-height:55vh; overflow:auto; }
+  #results:empty { display:none; }
+  #results .grp { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); padding:8px 12px 2px; }
+  #results .res { padding:8px 12px; cursor:pointer; font-size:14px; border-top:1px solid #f0f2f1; display:flex; gap:8px; align-items:center; }
+  #results .res:hover { background:#eef3f0; }
+  #results .res small { color:var(--muted); display:block; font-size:12px; }
+  #results .msg { padding:10px 12px; color:var(--muted); font-size:13px; }
+  /* Feuille de contenu (au-dessus de la barre d'onglets) */
+  #panel { position:absolute; left:10px; bottom:calc(var(--tabbar) + var(--bot) + 10px); width:380px; max-width:calc(100% - 20px);
+           max-height:calc(100% - var(--tabbar) - var(--bot) - var(--top) - 84px); overflow:auto;
+           background:var(--bg); border-radius:14px; box-shadow:0 4px 18px rgba(0,0,0,.22); padding:12px 14px 14px; z-index:3; }
+  #panel[hidden] { display:none; }
+  h1 { font-size:16px; margin:0; flex:1; }
+  .head { display:flex; align-items:center; gap:8px; position:sticky; top:-12px; background:var(--bg); margin:-12px -14px 0; padding:12px 14px 6px; z-index:1; }
+  .toggle { border:0; background:none; font-size:22px; line-height:1; cursor:pointer; color:var(--muted); padding:0 4px; }
+  /* Barre d'onglets en bas */
+  #tabs { position:absolute; left:0; right:0; bottom:0; z-index:4; display:flex; justify-content:center; background:#fff;
+          border-top:1px solid var(--line); padding:0 0 var(--bot); box-shadow:0 -2px 10px rgba(0,0,0,.08); }
+  #tabs button { flex:1; max-width:160px; height:var(--tabbar); border:0; background:none; cursor:pointer; color:var(--muted);
+                 display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; font:inherit; font-size:12px; position:relative; }
+  #tabs button.on { color:var(--accent); font-weight:600; }
+  #tabs button.on::before { content:''; position:absolute; top:0; left:25%; right:25%; height:3px; border-radius:0 0 3px 3px; background:var(--accent); }
+  #tabs .badge { position:absolute; top:6px; left:calc(50% + 8px); }
+  .maplibregl-ctrl-top-right { top:calc(62px + var(--top)); }
+  .maplibregl-ctrl-bottom-right, .maplibregl-ctrl-bottom-left { bottom:calc(var(--tabbar) + var(--bot)); }
   .sec { border-top:1px solid var(--line); margin-top:12px; padding-top:10px; }
   .sec > label.t { display:block; font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin-bottom:6px; }
   input[type=number] { width:72px; padding:5px 6px; border:1px solid var(--line); border-radius:8px; font:inherit; }
@@ -42,8 +69,6 @@
   .sw { width:18px; height:12px; border-radius:3px; border:1px solid rgba(0,0,0,.15); }
   .hypso { height:12px; border-radius:3px; margin:4px 0 2px; }
   .ticks { display:flex; justify-content:space-between; font-size:11px; color:var(--muted); }
-  #results div { padding:6px 8px; cursor:pointer; border-radius:6px; font-size:13px; }
-  #results div:hover { background:#eef3f0; }
   .muted { color:var(--muted); font-size:12px; }
   #info { font-size:13px; }
   #gpxinfo b { font-variant-numeric: tabular-nums; }
@@ -60,15 +85,11 @@
   .ta button { width:24px; height:22px; border:1px solid var(--line); background:#fff; border-radius:5px; cursor:pointer; font-size:11px; padding:0; }
   .ta button:disabled { opacity:.3; cursor:default; }
   .cov { font-size:12px; }
-  .tabs { display:flex; gap:4px; margin-top:10px; border-bottom:1px solid var(--line); }
-  .tabs button { flex:1; border:0; background:none; padding:7px 4px; font:inherit; cursor:pointer; color:var(--muted);
-                 border-bottom:3px solid transparent; margin-bottom:-1px; }
-  .tabs button.on { color:var(--accent); border-bottom-color:var(--accent); font-weight:600; }
-  .badge { font-size:11px; background:#eef3f0; color:var(--accent); border-radius:9px; padding:0 6px; }
+  .badge { font-size:11px; background:#e3efe8; color:var(--accent); border-radius:9px; padding:0 6px; }
   .badge:empty { display:none; }
   .tab > .sec:first-child { border-top:0; margin-top:4px; }
   .tn b.nm { cursor:pointer; }
-  #toast { position:absolute; left:50%; top:14px; transform:translateX(-50%); z-index:7; background:#1d2621; color:#fff; padding:9px 14px;
+  #toast { position:absolute; left:50%; top:calc(66px + var(--top)); transform:translateX(-50%); z-index:7; background:#1d2621; color:#fff; padding:9px 14px;
            border-radius:10px; font-size:13px; box-shadow:0 4px 16px rgba(0,0,0,.3); display:none; max-width:calc(100% - 40px); text-align:center; }
   .cov.ok { color:#2f6b4f; } .cov.part { color:#b26b00; } .cov.no { color:#c40000; }
   .za { display:flex; flex-direction:column; gap:3px; }
@@ -76,10 +97,11 @@
   #drop { position:absolute; inset:0; background:rgba(47,107,79,.25); border:4px dashed var(--accent); display:none;
           align-items:center; justify-content:center; font-size:22px; color:#fff; text-shadow:0 1px 4px #000; z-index:5; pointer-events:none; }
   @media (max-width:600px) {
-    #panel { width:calc(100% - 64px); max-height:72vh; padding:10px 12px; }
-    h1 { font-size:15px; }
+    #search { right:10px; max-width:none; }
+    #panel { left:0; right:0; width:auto; max-width:none; bottom:calc(var(--tabbar) + var(--bot)); border-radius:16px 16px 0 0;
+             max-height:min(70vh, calc(100% - var(--tabbar) - var(--bot) - var(--top) - 70px)); }
   }
-  #banner { position:absolute; left:50%; bottom:28px; transform:translateX(-50%); z-index:6; display:none; align-items:center; gap:10px;
+  #banner { position:absolute; left:50%; bottom:calc(var(--tabbar) + var(--bot) + 14px); transform:translateX(-50%); z-index:6; display:none; align-items:center; gap:10px;
             background:#1d2621; color:#fff; padding:10px 14px; border-radius:10px; box-shadow:0 4px 16px rgba(0,0,0,.3); font-size:14px; max-width:calc(100% - 20px); }
   #banner button { border:0; border-radius:7px; padding:6px 10px; font:inherit; cursor:pointer; }
   #banner .go { background:#9ccf5e; color:#1d2621; font-weight:600; } #banner .no { background:transparent; color:#cfd8d3; }
@@ -90,20 +112,20 @@
 <div id="drop">Dépose ton fichier GPX</div>
 <div id="banner"><span id="bannerTxt"></span><button class="go" id="bannerGo"></button><button class="no" id="bannerNo">Plus tard</button></div>
 
-<div id="panel">
-  <div class="head"><h1>⛰️ Relief & pentes</h1><button class="toggle" id="collapse" title="Réduire">▾</button></div>
+<div id="search">
+  <form class="box" id="qForm" autocomplete="off">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+    <input type="text" id="q" placeholder="Lieu, sommet, refuge, tracé…" enterkeyhint="search">
+    <button type="button" class="ib" id="qClear" title="Effacer" hidden>×</button>
+    <button type="submit" class="ib go">Chercher</button>
+  </form>
+  <div id="results"></div>
+</div>
+
+<div id="panel" hidden>
+  <div class="head"><h1 id="sheetTitle"></h1><button class="toggle" id="closeSheet" title="Fermer">×</button></div>
   <div class="body">
-    <div class="tabs" id="tabs">
-      <button data-tab="map" class="on">Carte</button>
-      <button data-tab="tracks">Tracés <span class="badge" id="nTracks"></span></button>
-      <button data-tab="zones">Zones <span class="badge" id="nZones"></span></button>
-    </div>
     <div class="tab" id="tab-map">
-    <div class="sec">
-      <label class="t">Aller à</label>
-      <input type="text" id="q" placeholder="Lieu, sommet, refuge… puis Entrée">
-      <div id="results"></div>
-    </div>
 
     <div class="sec">
       <label class="t">Fond de carte</label>
@@ -224,6 +246,11 @@
   </div>
 </div>
 <div id="toast"></div>
+<nav id="tabs">
+  <button data-tab="map"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3 2 8l10 5 10-5-10-5z"/><path d="m2 13 10 5 10-5"/></svg><span>Carte</span></button>
+  <button data-tab="tracks"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="6" cy="19" r="2"/><circle cx="18" cy="5" r="2"/><path d="M8 19h7.5a3.5 3.5 0 0 0 0-7h-7a3.5 3.5 0 0 1 0-7H16"/></svg><span>Tracés</span><span class="badge" id="nTracks"></span></button>
+  <button data-tab="zones"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 17v3h16v-3"/></svg><span>Zones</span><span class="badge" id="nZones"></span></button>
+</nav>
 
 <script>/* MapLibre GL JS 5.24.0 — BSD-3-Clause, https://maplibre.org */
 /**
@@ -609,16 +636,25 @@ function refreshTerrain() {
 }
 const vis = (id, on) => { map.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none'); refreshTerrain(); };
 
-function collapsePanel(on) { $('panel').classList.toggle('collapsed', on); $('collapse').textContent = on ? '▸' : '▾'; }
-$('collapse').onclick = () => collapsePanel(!$('panel').classList.contains('collapsed'));
-document.querySelector('#panel .head h1').onclick = () => $('collapse').click();
-function showTab(name) {
-  collapsePanel(false);
+const TAB_TITLES = { map: 'Réglages de la carte', tracks: 'Mes tracés', zones: 'Cartes hors ligne' };
+let currentTab = null;
+const isPhone = () => window.matchMedia('(max-width: 600px)').matches;
+function closeSheet() {
+  currentTab = null; $('panel').hidden = true;
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.remove('on'));
+}
+// Sur téléphone, refermer la feuille pour dégager la carte (après « centrer », « y aller »…)
+function collapsePanel(on) { if (on) closeSheet(); }
+function showTab(name, toggle = false) {
+  if (toggle && currentTab === name) { closeSheet(); return; }     // toucher l'onglet actif referme la feuille
+  currentTab = name; $('panel').hidden = false; $('sheetTitle').textContent = TAB_TITLES[name];
   document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === name));
   ['map', 'tracks', 'zones'].forEach(n => { $('tab-' + n).hidden = n !== name; });
   $('panel').scrollTop = 0;
+  clearResults();
 }
-document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => showTab(b.dataset.tab));
+document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => showTab(b.dataset.tab, true));
+$('closeSheet').onclick = closeSheet;
 let toastTimer = null;
 function toast(msg, ms = 6000) {
   $('toast').textContent = msg; $('toast').style.display = 'block';
@@ -695,26 +731,71 @@ $('b3d').onclick = () => {
 $('exa').oninput = e => { $('exav').textContent = (+e.target.value).toFixed(1); if (is3D) map.setTerrain({ source: 'demT', exaggeration: +e.target.value }); };
 $('north').onclick = () => map.easeTo({ bearing: 0, duration: 600 });
 
-/* Recherche de lieu (Nominatim / OpenStreetMap) */
-$('q').addEventListener('keydown', async e => {
-  if (e.key !== 'Enter' || !e.target.value.trim()) return;
-  $('results').innerHTML = '<div class="muted">Recherche…</div>';
+/* ---------- Barre de recherche : mes tracés et zones (instantané), puis lieux (OpenStreetMap) ---------- */
+function clearResults() { $('results').innerHTML = ''; }
+function resultRow(html, onPick) {
+  const d = document.createElement('div'); d.className = 'res'; d.innerHTML = html;
+  d.onclick = () => { onPick(); clearResults(); $('q').blur(); if (isPhone()) closeSheet(); };
+  return d;
+}
+const esc = v => String(v).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+function localResults(q) {
+  const n = norm(q), out = document.createDocumentFragment();
+  const tk = tracks.filter(t => norm(t.name).includes(n)).slice(0, 6);
+  const zn = zonesCache.filter(z => norm(z.name).includes(n)).slice(0, 4);
+  if (tk.length) {
+    out.appendChild(Object.assign(document.createElement('div'), { className: 'grp', textContent: 'Mes tracés' }));
+    tk.forEach(t => out.appendChild(resultRow(
+      `<span class="dot" style="background:${t.color}"></span><span>${esc(t.name)}<small>${(t.dist / 1000).toFixed(1)} km · +${Math.round(t.up)} m</small></span>`,
+      () => { if (!t.visible) { setTrackVisible(t, true); renderTracks(); saveTracks(); }
+              const [w, s, e, nn] = t.bbox; map.fitBounds([[w, s], [e, nn]], { padding: 60, pitch: is3D ? 55 : 0, duration: 1200 }); })));
+  }
+  if (zn.length) {
+    out.appendChild(Object.assign(document.createElement('div'), { className: 'grp', textContent: 'Mes zones hors ligne' }));
+    zn.forEach(z => out.appendChild(resultRow(`<span>⬇</span><span>${esc(z.name)}<small>${fmtMB(z.bytes)}</small></span>`,
+      () => { const [w, s, e, nn] = z.bbox; map.fitBounds([[w, s], [e, nn]], { padding: 20, pitch: is3D ? 50 : 0, duration: 1500 }); })));
+  }
+  return out;
+}
+let searchJob = 0;
+$('q').addEventListener('input', () => {
+  const q = $('q').value.trim(); $('qClear').hidden = !q; searchJob++;
+  clearResults(); if (!q) return;
+  const loc = localResults(q);
+  $('results').appendChild(loc);
+  const hint = document.createElement('div'); hint.className = 'msg';
+  hint.textContent = 'Appuie sur « Chercher » pour trouver un lieu.';
+  $('results').appendChild(hint);
+});
+$('qClear').onclick = () => { $('q').value = ''; $('qClear').hidden = true; clearResults(); $('q').focus(); };
+$('q').addEventListener('keydown', e => { if (e.key === 'Escape') { clearResults(); $('q').blur(); } });
+// Lieux : recherche à la demande (le service OpenStreetMap n'autorise pas la saisie semi-automatique)
+$('qForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const q = $('q').value.trim(); if (!q) return;
+  const job = ++searchJob;
+  clearResults(); $('results').appendChild(localResults(q));
+  const msg = document.createElement('div'); msg.className = 'msg'; msg.textContent = 'Recherche des lieux…';
+  $('results').appendChild(msg);
+  if (navigator.onLine === false) { msg.textContent = 'Recherche de lieux indisponible sans connexion.'; return; }
   try {
-    const r = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=6&accept-language=fr&q=' + encodeURIComponent(e.target.value));
+    const r = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=7&accept-language=fr&q=' + encodeURIComponent(q));
     const list = await r.json();
-    $('results').innerHTML = list.length ? '' : '<div class="muted">Aucun résultat.</div>';
+    if (job !== searchJob) return;
+    msg.remove();
+    if (!list.length) { $('results').appendChild(Object.assign(document.createElement('div'), { className: 'msg', textContent: 'Aucun lieu trouvé.' })); return; }
+    $('results').appendChild(Object.assign(document.createElement('div'), { className: 'grp', textContent: 'Lieux' }));
     list.forEach(p => {
-      const div = document.createElement('div');
-      div.textContent = p.display_name;
-      div.onclick = () => {
+      const [title, ...rest] = p.display_name.split(', ');
+      $('results').appendChild(resultRow(`<span>📍</span><span>${esc(title)}<small>${esc(rest.slice(0, 3).join(', '))}</small></span>`, () => {
         const [s, n, w, ea] = p.boundingbox.map(Number);
         map.fitBounds([[w, s], [ea, n]], { maxZoom: 14, pitch: is3D ? 60 : 0, duration: 1500 });
-        $('results').innerHTML = '';
-      };
-      $('results').appendChild(div);
+      }));
     });
-  } catch (err) { $('results').innerHTML = '<div class="muted">Recherche indisponible.</div>'; }
+  } catch (err) { if (job === searchJob) msg.textContent = 'Recherche de lieux indisponible pour le moment.'; }
 });
+$('q').addEventListener('focus', () => { if (isPhone()) closeSheet(); });
+map.on('movestart', e => { if (e.originalEvent) clearResults(); });
 
 /* ---------- Import GPX ---------- */
 // tracks[0] = tracé au premier plan (dessiné par-dessus les autres)
@@ -1085,7 +1166,6 @@ $('offStop').onclick = () => { if (downloading) downloading.stop = true; };
 
 /* ---------- Application installable ---------- */
 // Sur petit écran, le panneau démarre replié pour laisser la carte visible
-if (window.matchMedia('(max-width: 600px)').matches) collapsePanel(true);
 
 /* ---------- Position de départ : l'utilisateur, sinon un coin de France au hasard ---------- */
 const SPOTS = [
