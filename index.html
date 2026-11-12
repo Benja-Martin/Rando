@@ -60,6 +60,16 @@
   .ta button { width:24px; height:22px; border:1px solid var(--line); background:#fff; border-radius:5px; cursor:pointer; font-size:11px; padding:0; }
   .ta button:disabled { opacity:.3; cursor:default; }
   .cov { font-size:12px; }
+  .tabs { display:flex; gap:4px; margin-top:10px; border-bottom:1px solid var(--line); }
+  .tabs button { flex:1; border:0; background:none; padding:7px 4px; font:inherit; cursor:pointer; color:var(--muted);
+                 border-bottom:3px solid transparent; margin-bottom:-1px; }
+  .tabs button.on { color:var(--accent); border-bottom-color:var(--accent); font-weight:600; }
+  .badge { font-size:11px; background:#eef3f0; color:var(--accent); border-radius:9px; padding:0 6px; }
+  .badge:empty { display:none; }
+  .tab > .sec:first-child { border-top:0; margin-top:4px; }
+  .tn b.nm { cursor:pointer; }
+  #toast { position:absolute; left:50%; top:14px; transform:translateX(-50%); z-index:7; background:#1d2621; color:#fff; padding:9px 14px;
+           border-radius:10px; font-size:13px; box-shadow:0 4px 16px rgba(0,0,0,.3); display:none; max-width:calc(100% - 40px); text-align:center; }
   .cov.ok { color:#2f6b4f; } .cov.part { color:#b26b00; } .cov.no { color:#c40000; }
   .za { display:flex; flex-direction:column; gap:3px; }
   .za .btn { padding:3px 8px; font-size:12px; }
@@ -83,7 +93,12 @@
 <div id="panel">
   <div class="head"><h1>⛰️ Relief & pentes</h1><button class="toggle" id="collapse" title="Réduire">▾</button></div>
   <div class="body">
-
+    <div class="tabs" id="tabs">
+      <button data-tab="map" class="on">Carte</button>
+      <button data-tab="tracks">Tracés <span class="badge" id="nTracks"></span></button>
+      <button data-tab="zones">Zones <span class="badge" id="nZones"></span></button>
+    </div>
+    <div class="tab" id="tab-map">
     <div class="sec">
       <label class="t">Aller à</label>
       <input type="text" id="q" placeholder="Lieu, sommet, refuge… puis Entrée">
@@ -98,7 +113,7 @@
         <option value="ortho">Photos aériennes IGN</option>
         <option value="osm">OpenStreetMap</option>
       </select>
-      <div class="row"><input type="checkbox" id="hill" checked><label for="hill">Ombrage du relief</label></div>
+      <div class="row"><input type="checkbox" id="hill"><label for="hill">Ombrage du relief</label></div>
       <div class="row"><input type="checkbox" id="trails"><label for="trails">Sentiers balisés (GR, PR…)</label></div>
     </div>
 
@@ -139,16 +154,43 @@
         <button class="btn ghost" id="north" title="Remettre le nord en haut">Nord ↑</button>
       </div>
       <div class="row"><span class="muted">Relief ×</span><input type="range" id="exa" min="1" max="2.5" step="0.1" value="1.3"><span id="exav" class="muted">1.3</span></div>
-      <div class="muted">Clic droit (ou Ctrl + glisser) pour pivoter et incliner.</div>
+      <div class="muted">Clic droit (ou Ctrl + glisser) pour pivoter et incliner. Sur téléphone : glisser à deux doigts.</div>
     </div>
-
-    <div class="sec">
-      <label class="t">Point cliqué</label>
-      <div id="info" class="muted">Clique sur la carte pour connaître l'altitude et la pente.</div>
     </div>
-
+    <div class="tab" id="tab-tracks" hidden>
     <div class="sec">
-      <label class="t">Hors ligne <span id="netState"></span></label>
+      <div class="row">
+        <label class="btn" for="gpx" style="text-align:center; flex:1">Importer un GPX…</label>
+        <input type="file" id="gpx" accept=".gpx,application/gpx+xml" multiple hidden>
+      </div>
+      <div class="muted">Tu peux aussi glisser le fichier sur la carte.</div>
+      <div id="gpxsave" class="cov ok" style="display:block; margin-top:4px"></div>
+      <div id="gpxerr"></div>
+      <div id="trkTools" style="display:none; margin-top:8px">
+        <input type="text" id="trkQ" placeholder="Rechercher un tracé…">
+        <div class="row">
+          <select id="trkSort" style="flex:1">
+            <option value="order">Ordre d'affichage (premier plan en haut)</option>
+            <option value="recent">Ajoutés récemment</option>
+            <option value="name">Nom (A → Z)</option>
+            <option value="dist">Distance (croissante)</option>
+            <option value="up">Dénivelé positif (croissant)</option>
+          </select>
+        </div>
+        <div class="row">
+          <button class="btn ghost" id="trkAllOn">Tout afficher</button>
+          <button class="btn ghost" id="trkAllOff">Tout masquer</button>
+          <button class="btn ghost" id="clearGpx">Tout effacer</button>
+        </div>
+        <div id="gpxhint" class="muted"></div>
+        <div id="trkCount" class="muted"></div>
+      </div>
+      <div id="gpxinfo"></div>
+    </div>
+    </div>
+    <div class="tab" id="tab-zones" hidden>
+    <div class="sec">
+      <label class="t">Cartes hors ligne <span id="netState"></span></label>
       <button class="btn ghost" id="offPrep" style="width:100%">Télécharger la zone affichée…</button>
       <div id="offForm" style="display:none; margin-top:8px">
         <div class="muted">La zone en pointillés orange sera enregistrée dans ce navigateur.</div>
@@ -178,22 +220,10 @@
       <div class="muted" style="margin-top:4px">Les fonds OpenStreetMap, OpenTopoMap et la couche des sentiers balisés ne sont pas téléchargeables : leurs conditions d'usage interdisent le téléchargement en masse.</div>
     </div>
 
-    <div class="sec">
-      <label class="t">Trace GPX</label>
-      <div class="row">
-        <label class="btn ghost" for="gpx" style="text-align:center">Ouvrir un GPX…</label>
-        <input type="file" id="gpx" accept=".gpx,application/gpx+xml" multiple hidden>
-        <button class="btn ghost" id="clearGpx" style="display:none">Tout effacer</button>
-      </div>
-      <div class="muted">Ou glisse le fichier sur la carte.</div>
-      <div id="gpxhint" class="muted" style="display:none; margin-top:6px">En haut de la liste = premier plan. Glisse les tracés ou utilise ▲ ▼ pour les réordonner.</div>
-      <div id="gpxsave" class="cov ok" style="display:block; margin-top:4px"></div>
-      <div id="gpxinfo"></div>
-      <div id="gpxerr"></div>
     </div>
-
   </div>
 </div>
+<div id="toast"></div>
 
 <script>/* MapLibre GL JS 5.24.0 — BSD-3-Clause, https://maplibre.org */
 /**
@@ -504,22 +534,12 @@ async function elevAt(lng, lat, z = 14) {
   const i = Math.min(255, Math.floor(px - tx*256)), j = Math.min(255, Math.floor(py - ty*256));
   return t[j*256 + i];
 }
-async function slopeAt(lng, lat) {
-  const d = 15, dLat = d / 111320, dLng = d / (111320 * Math.cos(lat * Math.PI / 180));
-  const [e, w, nn, ss] = await Promise.all([elevAt(lng+dLng, lat), elevAt(lng-dLng, lat), elevAt(lng, lat+dLat), elevAt(lng, lat-dLat)]);
-  if ([e,w,nn,ss].some(v => v == null)) return null;
-  const gx = (e - w) / (2*d), gy = (nn - ss) / (2*d);
-  return { slope: Math.atan(Math.hypot(gx, gy)) * 180 / Math.PI,
-           aspect: (Math.atan2(-gx, -gy) * 180 / Math.PI + 360) % 360 };
-}
-const orient = a => ['N','NE','E','SE','S','SO','O','NO'][Math.round(a / 45) % 8];
 
 /* ---------- Carte ---------- */
 const raster = (tiles, attribution, maxzoom = 19) => ({ type: 'raster', tiles: [tiles], tileSize: 256, attribution, maxzoom });
 const map = new maplibregl.Map({
   container: 'map',
-  ...(() => { try { const v = JSON.parse(localStorage.getItem('carte-vue')); if (v && v.center) return v; } catch (e) {} 
-               return { center: [6.87, 45.89], zoom: 12.6, pitch: 62, bearing: -25 }; })(),
+  center: [2.5, 46.6], zoom: 5, pitch: 0, bearing: 0,     // la France en attendant la position
   maxPitch: 85,
   style: {
     version: 8,
@@ -541,7 +561,7 @@ const map = new maplibregl.Map({
       { id: 'base-osm',   type: 'raster', source: 'osm',   layout: { visibility: 'none' } },
       { id: 'hypso', type: 'raster', source: 'hypso', layout: { visibility: 'none' },
         paint: { 'raster-opacity': 0.6, 'raster-opacity-transition': { duration: 0 } } },
-      { id: 'hill', type: 'hillshade', source: 'demH',
+      { id: 'hill', type: 'hillshade', source: 'demH', layout: { visibility: 'none' },
         paint: { 'hillshade-exaggeration': 0.45, 'hillshade-shadow-color': '#2b3a33', 'hillshade-highlight-color': '#ffffff' } },
       { id: 'slope', type: 'raster', source: 'slope', layout: { visibility: 'none' },
         paint: { 'raster-opacity': 0.6, 'raster-opacity-transition': { duration: 0 }, 'raster-fade-duration': 150 } },
@@ -551,10 +571,10 @@ const map = new maplibregl.Map({
   },
   attributionControl: { compact: true }
 });
-// Mémorise la dernière vue pour rouvrir la carte au même endroit
-map.on('moveend', () => { try { localStorage.setItem('carte-vue', JSON.stringify({ center: map.getCenter().toArray(), zoom: map.getZoom(), pitch: map.getPitch(), bearing: map.getBearing() })); } catch (e) {} });
 map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right');
-map.addControl(new maplibregl.GeolocateControl({ positionOptions: { enableHighAccuracy: true }, trackUserLocation: true, showAccuracyCircle: true }), 'top-right');
+const geo = new maplibregl.GeolocateControl({ positionOptions: { enableHighAccuracy: true }, trackUserLocation: true,
+                                             showAccuracyCircle: true, fitBoundsOptions: { maxZoom: 14 } });
+map.addControl(geo, 'top-right');
 map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-right');
 
 map.on('error', e => { if (!/indisponible|Failed to fetch|NetworkError|tuile/i.test(e?.error?.message || '')) console.error(e.error); });
@@ -589,8 +609,21 @@ function refreshTerrain() {
 }
 const vis = (id, on) => { map.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none'); refreshTerrain(); };
 
+function collapsePanel(on) { $('panel').classList.toggle('collapsed', on); $('collapse').textContent = on ? '▸' : '▾'; }
+$('collapse').onclick = () => collapsePanel(!$('panel').classList.contains('collapsed'));
 document.querySelector('#panel .head h1').onclick = () => $('collapse').click();
-$('collapse').onclick = () => { $('panel').classList.toggle('collapsed'); $('collapse').textContent = $('panel').classList.contains('collapsed') ? '▸' : '▾'; };
+function showTab(name) {
+  collapsePanel(false);
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === name));
+  ['map', 'tracks', 'zones'].forEach(n => { $('tab-' + n).hidden = n !== name; });
+  $('panel').scrollTop = 0;
+}
+document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => showTab(b.dataset.tab));
+let toastTimer = null;
+function toast(msg, ms = 6000) {
+  $('toast').textContent = msg; $('toast').style.display = 'block';
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { $('toast').style.display = 'none'; }, ms);
+}
 
 $('base').onchange = e => ['plan','ortho','otm','osm'].forEach(b => vis('base-' + b, b === e.target.value));
 $('hill').onchange = e => vis('hill', e.target.checked);
@@ -683,19 +716,6 @@ $('q').addEventListener('keydown', async e => {
   } catch (err) { $('results').innerHTML = '<div class="muted">Recherche indisponible.</div>'; }
 });
 
-/* Clic : altitude, pente, orientation */
-const marker = new maplibregl.Marker({ color: '#2f6b4f', scale: .7 });
-map.on('click', async e => {
-  const { lng, lat } = e.lngLat;
-  marker.setLngLat(e.lngLat).addTo(map);
-  $('info').textContent = 'Calcul…';
-  const [h, s] = await Promise.all([elevAt(lng, lat), slopeAt(lng, lat)]);
-  if (h == null) { $('info').textContent = 'Données indisponibles ici.'; return; }
-  $('info').innerHTML = `<b>${Math.round(h)} m</b> d'altitude` +
-    (s ? ` · pente <b>${Math.round(s.slope)}°</b> · versant <b>${orient(s.aspect)}</b>` : '') +
-    `<br><span class="muted">${lat.toFixed(5)}, ${lng.toFixed(5)}</span>`;
-});
-
 /* ---------- Import GPX ---------- */
 // tracks[0] = tracé au premier plan (dessiné par-dessus les autres)
 const tracks = [];
@@ -724,6 +744,7 @@ async function loadGpx(file) {
   const n = trackSeq++, h = Math.floor(hours), m = Math.round((hours - h) * 60);
   const lngs = coords.map(c => c[0]), lats = coords.map(c => c[1]);
   const t = { id: 'gpx' + n, seq: n, color: palette[n % palette.length], name, visible: true,
+    dist, up, down, date: Date.now(),
     coords: coords.map(([a, b]) => [+a.toFixed(6), +b.toFixed(6)]),
     bbox: [Math.min(...lngs), Math.min(...lats), Math.max(...lngs), Math.max(...lats)],
     stats: `<b>${(dist/1000).toFixed(1)} km</b> · <b>+${Math.round(up)} m</b> / −${Math.round(down)} m<br>` +
@@ -732,6 +753,7 @@ async function loadGpx(file) {
   addTrackLayers(t);
   tracks.unshift(t);
   applyTrackOrder(); renderTracks(); saveTracks();
+  showTab('tracks');
   const [w, s, e, nn] = t.bbox;
   map.fitBounds([[w, s], [e, nn]], { padding: 60, pitch: is3D ? 55 : 0, duration: 1500 });
 }
@@ -744,7 +766,8 @@ function addTrackLayers(t) {
 
 /* Sauvegarde des traces sur l'appareil (ordre et visibilité compris) */
 const trackRecord = (t, i) => ({ id: t.id, seq: t.seq, color: t.color, name: t.name, visible: t.visible,
-                                 coords: t.coords, bbox: t.bbox, stats: t.stats, order: i });
+                                 coords: t.coords, bbox: t.bbox, stats: t.stats, order: i,
+                                 dist: t.dist, up: t.up, down: t.down, date: t.date });
 let trackBytes = 0;
 async function saveTracks() {
   try {
@@ -759,6 +782,10 @@ async function restoreTracks() {
   try { recs = (await idb('tracks', 'readonly', s => s.getAll())) || []; } catch (e) { return; }
   recs.sort((a, b) => a.order - b.order).forEach(r => {
     if (map.getSource(r.id)) return;
+    // tracés enregistrés par une version précédente : on retrouve distance et dénivelé dans le résumé
+    if (r.dist == null) { const k = /([\d.]+) km/.exec(r.stats); r.dist = k ? parseFloat(k[1]) * 1000 : 0; }
+    if (r.up == null) { const u = /\+(\d+) m/.exec(r.stats); r.up = u ? +u[1] : 0; }
+    if (r.date == null) r.date = r.seq;
     addTrackLayers(r); tracks.push(r);
     trackSeq = Math.max(trackSeq, r.seq + 1);
   });
@@ -801,19 +828,32 @@ function removeTrack(i) {
 }
 
 let dragFrom = null;
+const norm = v => v.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+function setTrackVisible(t, on) { t.visible = on; vis(t.id, on); vis(t.id + '-casing', on); }
 function renderTracks() {
   const list = $('gpxinfo'); list.innerHTML = '';
-  $('clearGpx').style.display = tracks.length ? 'inline-block' : 'none';
-  $('gpxhint').style.display = tracks.length > 1 ? 'block' : 'none';
-  tracks.forEach((t, i) => {
+  $('nTracks').textContent = tracks.length || '';
+  $('trkTools').style.display = tracks.length ? 'block' : 'none';
+  const q = norm($('trkQ').value.trim()), sort = $('trkSort').value;
+  let view = tracks.map((t, i) => ({ t, i })).filter(({ t }) => !q || norm(t.name).includes(q));
+  const cmp = { recent: (a, b) => b.t.date - a.t.date, name: (a, b) => a.t.name.localeCompare(b.t.name, 'fr'),
+                dist: (a, b) => a.t.dist - b.t.dist, up: (a, b) => a.t.up - b.t.up }[sort];
+  if (cmp) view.sort(cmp);
+  const canReorder = sort === 'order' && !q;
+  $('gpxhint').textContent = canReorder
+    ? (tracks.length > 1 ? 'En haut de la liste = premier plan sur la carte. Glisse les tracés ou utilise ▲ ▼ pour les réordonner.' : '')
+    : 'Pour réordonner les tracés, choisis « Ordre d\'affichage » et vide la recherche.';
+  const shown = tracks.filter(t => t.visible).length;
+  $('trkCount').textContent = `${view.length === tracks.length ? tracks.length : view.length + ' sur ' + tracks.length} tracé${tracks.length > 1 ? 's' : ''} · ${shown} affiché${shown > 1 ? 's' : ''} sur la carte`;
+  view.forEach(({ t, i }) => {
     const li = document.createElement('div');
-    li.className = 'trk' + (t.visible ? '' : ' off'); li.draggable = true;
-    li.innerHTML = `<span class="grip" title="Glisser pour réordonner">⋮⋮</span>
-      <div class="tb"><div class="tn"><span class="dot" style="background:${t.color}"></span><b class="nm"></b></div>
+    li.className = 'trk' + (t.visible ? '' : ' off'); li.draggable = canReorder;
+    li.innerHTML = `${canReorder ? '<span class="grip" title="Glisser pour réordonner">⋮⋮</span>' : ''}
+      <div class="tb"><div class="tn"><span class="dot" style="background:${t.color}"></span><b class="nm" title="Centrer la carte sur ce tracé"></b></div>
       <div class="st">${t.stats}<br>${coverageHtml(t)}</div></div>
       <div class="ta">
-        <button title="Monter (vers le premier plan)" ${i === 0 ? 'disabled' : ''}>▲</button>
-        <button title="Descendre (vers l'arrière-plan)" ${i === tracks.length - 1 ? 'disabled' : ''}>▼</button>
+        <button title="Monter (vers le premier plan)" ${!canReorder || i === 0 ? 'disabled' : ''}>▲</button>
+        <button title="Descendre (vers l'arrière-plan)" ${!canReorder || i === tracks.length - 1 ? 'disabled' : ''}>▼</button>
         <button title="${t.visible ? 'Masquer' : 'Afficher'}">${t.visible ? '👁' : '◌'}</button>
         <button title="Centrer la carte sur ce tracé">⌖</button>
         <button title="Télécharger la carte autour de ce tracé">⬇</button>
@@ -821,20 +861,36 @@ function renderTracks() {
       </div>`;
     li.querySelector('.nm').textContent = t.name;
     const [bUp, bDown, bVis, bZoom, bDl, bDel] = li.querySelectorAll('.ta button');
+    const focus = () => {
+      if (!t.visible) { setTrackVisible(t, true); renderTracks(); saveTracks(); }
+      const [w, s, e, n] = t.bbox; map.fitBounds([[w, s], [e, n]], { padding: 60, pitch: is3D ? 55 : 0, duration: 1200 });
+      if (window.matchMedia('(max-width: 600px)').matches) collapsePanel(true);
+    };
     bUp.onclick = () => moveTrack(i, i - 1);
     bDown.onclick = () => moveTrack(i, i + 1);
-    bVis.onclick = () => { t.visible = !t.visible; vis(t.id, t.visible); vis(t.id + '-casing', t.visible); renderTracks(); saveTracks(); };
-    bZoom.onclick = () => { const [w, s, e, n] = t.bbox; map.fitBounds([[w, s], [e, n]], { padding: 60, pitch: is3D ? 55 : 0, duration: 1200 }); };
+    bVis.onclick = () => { setTrackVisible(t, !t.visible); renderTracks(); saveTracks(); };
+    bZoom.onclick = focus; li.querySelector('.nm').onclick = focus;
     bDl.onclick = () => prepareZone(trackZoneBox(t), t.name);
-    bDel.onclick = () => removeTrack(i);
-    li.addEventListener('dragstart', e => { dragFrom = i; li.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(i)); });
-    li.addEventListener('dragend', () => { dragFrom = null; li.classList.remove('dragging'); });
-    li.addEventListener('dragover', e => { if (dragFrom === null) return; e.preventDefault(); e.stopPropagation(); li.classList.add('over'); });
-    li.addEventListener('dragleave', () => li.classList.remove('over'));
-    li.addEventListener('drop', e => { if (dragFrom === null) return; e.preventDefault(); e.stopPropagation(); li.classList.remove('over'); moveTrack(dragFrom, i); });
+    bDel.onclick = () => {
+      if (!bDel.dataset.sure) { bDel.dataset.sure = 1; bDel.textContent = '?'; bDel.title = 'Cliquer encore pour confirmer'; bDel.style.color = '#c40000';
+        setTimeout(() => { delete bDel.dataset.sure; bDel.textContent = '✕'; bDel.style.color = ''; }, 3000); return; }
+      removeTrack(i);
+    };
+    if (canReorder) {
+      li.addEventListener('dragstart', e => { dragFrom = i; li.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(i)); });
+      li.addEventListener('dragend', () => { dragFrom = null; li.classList.remove('dragging'); });
+      li.addEventListener('dragover', e => { if (dragFrom === null) return; e.preventDefault(); e.stopPropagation(); li.classList.add('over'); });
+      li.addEventListener('dragleave', () => li.classList.remove('over'));
+      li.addEventListener('drop', e => { if (dragFrom === null) return; e.preventDefault(); e.stopPropagation(); li.classList.remove('over'); moveTrack(dragFrom, i); });
+    }
     list.appendChild(li);
   });
+  if (tracks.length && !view.length) list.innerHTML = '<p class="muted">Aucun tracé ne correspond à la recherche.</p>';
 }
+$('trkQ').addEventListener('input', renderTracks);
+$('trkSort').addEventListener('change', renderTracks);
+$('trkAllOn').onclick = () => { tracks.forEach(t => setTrackVisible(t, true)); renderTracks(); saveTracks(); };
+$('trkAllOff').onclick = () => { tracks.forEach(t => setTrackVisible(t, false)); renderTracks(); saveTracks(); };
 $('gpx').onchange = e => { [...e.target.files].forEach(loadGpx); e.target.value = ''; };
 $('clearGpx').onclick = () => {
   if (!$('clearGpx').dataset.sure) {
@@ -899,6 +955,8 @@ async function renderZones() {
   refreshTerrain();
 
   const list = $('offList'); list.innerHTML = '';
+  $('nZones').textContent = zonesCache.length || '';
+  if (!zonesCache.length) list.innerHTML = '<p class="muted">Aucune zone enregistrée. Cadre la carte sur ta prochaine sortie, puis télécharge-la ci-dessus.</p>';
   zonesCache.forEach(zone => {
     const el = document.createElement('div'); el.className = 'trk';
     el.innerHTML = `<div class="tb"><div class="tn"><b class="nm"></b></div>
@@ -906,7 +964,8 @@ async function renderZones() {
       <div class="za"><button class="btn ghost">Y aller</button><button class="btn ghost">Supprimer</button></div>`;
     el.querySelector('.nm').textContent = zone.name;
     const [go, del] = el.querySelectorAll('button');
-    go.onclick = () => { const [w, s, e, n] = zone.bbox; map.fitBounds([[w, s], [e, n]], { padding: 20, pitch: is3D ? 50 : 0, duration: 1500 }); };
+    go.onclick = () => { const [w, s, e, n] = zone.bbox; map.fitBounds([[w, s], [e, n]], { padding: 20, pitch: is3D ? 50 : 0, duration: 1500 });
+                         if (window.matchMedia('(max-width: 600px)').matches) collapsePanel(true); };
     del.onclick = async () => {
       if (!del.dataset.sure) { del.dataset.sure = 1; del.textContent = 'Confirmer ?'; del.style.borderColor = del.style.color = '#c40000';
         setTimeout(() => { delete del.dataset.sure; del.textContent = 'Supprimer'; del.style.borderColor = del.style.color = ''; }, 4000); return; }
@@ -957,6 +1016,7 @@ function updateEstimate() {
 }
 let previewFixed = false;     // true : zone calée sur un tracé, elle ne suit plus la vue
 function prepareZone(box, name) {
+  showTab('zones');
   previewFixed = !!box;
   previewBox = box || viewBBox();
   $('offName').value = name || 'Zone du ' + new Date().toLocaleDateString('fr-FR');
@@ -1025,7 +1085,33 @@ $('offStop').onclick = () => { if (downloading) downloading.stop = true; };
 
 /* ---------- Application installable ---------- */
 // Sur petit écran, le panneau démarre replié pour laisser la carte visible
-if (window.matchMedia('(max-width: 600px)').matches) { $('panel').classList.add('collapsed'); $('collapse').textContent = '▸'; }
+if (window.matchMedia('(max-width: 600px)').matches) collapsePanel(true);
+
+/* ---------- Position de départ : l'utilisateur, sinon un coin de France au hasard ---------- */
+const SPOTS = [
+  ['Chamonix et le massif du Mont-Blanc', 6.87, 45.92], ['les Écrins (La Bérarde)', 6.29, 44.93], ['la Vanoise (Pralognan)', 6.72, 45.38],
+  ['le Vercors', 5.52, 44.98], ['la Chartreuse', 5.80, 45.37], ['Belledonne', 6.00, 45.20], ['le Queyras', 6.86, 44.75],
+  ['le Mercantour', 7.25, 44.12], ['les gorges du Verdon', 6.33, 43.75], ['les Calanques', 5.45, 43.21],
+  ['le cirque de Gavarnie', -0.01, 42.73], ['le pic du Midi d\'Ossau', -0.44, 42.84], ['le Canigou', 2.46, 42.52],
+  ['le Puy de Sancy', 2.81, 45.53], ['la chaîne des Puys', 2.96, 45.77], ['le mont Aigoual', 3.58, 44.12],
+  ['les gorges du Tarn', 3.35, 44.32], ['le Hohneck (Vosges)', 7.02, 48.04], ['le Crêt de la Neige (Jura)', 5.94, 46.27],
+  ['les aiguilles de Bavella (Corse)', 9.22, 41.79], ['la presqu\'île de Crozon', -4.55, 48.25], ['les falaises d\'Étretat', 0.20, 49.71]
+];
+function goRandomSpot(reason) {
+  const [name, lng, lat] = SPOTS[Math.floor(Math.random() * SPOTS.length)];
+  map.jumpTo({ center: [lng, lat], zoom: 12.5, pitch: is3D ? 55 : 0, bearing: 0 });
+  toast(`${reason} Destination surprise : ${name}.`);
+}
+function startAtUser() {
+  if (!navigator.geolocation) { goRandomSpot('Localisation non disponible sur cet appareil.'); return; }
+  navigator.geolocation.getCurrentPosition(p => {
+    map.jumpTo({ center: [p.coords.longitude, p.coords.latitude], zoom: 13, pitch: is3D ? 55 : 0, bearing: 0 });
+    // affiche le point bleu de position (le contrôle peut ne pas être prêt tout de suite)
+    let tries = 0; const show = () => { if (!geo.trigger() && ++tries < 20) setTimeout(show, 500); }; show();
+  }, err => goRandomSpot(err && err.code === 1 ? 'Localisation non autorisée.' : 'Position introuvable pour le moment.'),
+  { enableHighAccuracy: false, timeout: 10000, maximumAge: 600000 });
+}
+startAtUser();
 
 function banner(text, action, onGo) {
   $('bannerTxt').textContent = text; $('bannerGo').textContent = action;
